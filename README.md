@@ -1,6 +1,6 @@
 # ReferWhat
 Source code and data for paper [Referring Expression Generation via Visual Dialogue](https://link.springer.com/chapter/10.1007/978-3-030-60457-8_3)
-# install requirment
+# Install requirment
 * yaml
 * NLTK
 * h5py
@@ -10,7 +10,7 @@ Source code and data for paper [Referring Expression Generation via Visual Dialo
 * Python3.6
 * PyTorch 1.1
 # Dataset
-* image: Download from [COCO_train2014](http://images.cocodataset.org/zips/train2014.zip)
+* Image: Download from [COCO_train2014](http://images.cocodataset.org/zips/train2014.zip)
 * ReferWhat?! append only dialog: Download from [ReferWhat_dataset](https://drive.google.com/file/d/1xQPscO1H2m1-Zb-jWzSx4o-AoyfLpG_e/view?usp=sharing), and save into `/data` folder.
 # Prepare
 `cd code/prepare`
