@@ -16,7 +16,7 @@ from REGer import REGModel
 os.environ["CUDA_VISIBLE_DEVICES"]="3"
 MODE = 'append'
 DATA_SET = 'refcoco'
-DATA_SPLIT = 'unc_1222'
+DATA_SPLIT = 'unc'
 DATA_TYPE = 'combine'
 FEATS_FILE = 'resnet152'
 SAVE_DIR = 'Adam_0.0001_test'
@@ -38,8 +38,7 @@ class Predictor(object):
         self.test_loader = data
         self.save_path = save_path
         self.data_cfg = data_cfg
-        if self.model.cfg.MODEL.ENCREU:
-            self.noc = torch.LongTensor([[self.model.noc]]).cuda() 
+        self.noc = torch.LongTensor([[self.model.noc]]).cuda() 
 
     def predict(self, item, beam_size = 3):
 
@@ -61,8 +60,7 @@ class Predictor(object):
         regs_mask_ref = torch.arange(10).view(1, -1).repeat(1, 1).cuda()   # 10 is the default att_num
         regs_mask = (regs_mask_ref < regs_num).view(1, -1)
 
-        if self.model.cfg.MODEL.VIS_METHOD == 'atten':
-            (v_r, v_diff) = vis_feats
+        (v_r, v_diff) = vis_feats
 
         for i in range(self.model.bi_max):
             if i == 0:
@@ -70,35 +68,27 @@ class Predictor(object):
                 fact_label = torch.LongTensor([[self.model.bod]]).cuda()
                 his_h = None
                 fact_h = None
-            if self.model.cfg.MODEL.ENCREU:
-                REGer_emb, fact_h = self.model.hrnn.enc_reger_perround(fact_label, fact_len[:, 0], fact_h)
-                REUer_emb = self.model.hrnn.enc_reuer_perround(self.noc, fact_len[:, 1])
-                his_emb , his_h = self.model.hrnn.enc_his(torch.cat([REGer_emb, REUer_emb], 1), his_h)
+            REGer_emb, fact_h = self.model.hrnn.enc_reger_perround(fact_label, fact_len[:, 0], fact_h)
+            REUer_emb = self.model.hrnn.enc_reuer_perround(self.noc, fact_len[:, 1])
+            his_emb , his_h = self.model.hrnn.enc_his(torch.cat([REGer_emb, REUer_emb], 1), his_h)
+            
+            attn_num = v_diff.size(1)
+            self.batch_size = v_diff.size(0)
+            #his_emb = torch.relu(self.model.fc2(torch.relu(self.model.fc1(his_emb))))
+            if i == 0:
+                w = 1/attn_num
+                #print(attn_num)
+                v_att_w = torch.FloatTensor(attn_num, self.batch_size).fill_(w).cuda()
             else:
-                fact_emb, fact_h = self.model.hrnn.enc_reger_perround(fact_label, fact_len, fact_h)
-                #print(fact_emb)
-                if self.model.cfg.MODEL.HRED:
-                    his_emb, his_h = self.model.hrnn.enc_his(fact_emb, his_h)
-                else:
-                    his_emb = fact_emb.unsqueeze(1)
-            if self.model.cfg.MODEL.VIS_METHOD == 'atten':
-                attn_num = v_diff.size(1)
-                self.batch_size = v_diff.size(0)
-                #his_emb = torch.relu(self.model.fc2(torch.relu(self.model.fc1(his_emb))))
-                if i == 0:
-                    w = 1/attn_num
-                    #print(attn_num)
-                    v_att_w = torch.FloatTensor(attn_num, self.batch_size).fill_(w).cuda()
-                else:
-                    v_att_w = self.model.attn.negforward(his_emb.transpose(0,1), v_diff.transpose(0,1)).transpose(0,1)
-                
-                v_att_w.data.masked_fill_(~regs_mask.transpose(0,1).data, 0)
-                # v_att_norm_w batch x 1 x attn_num
-                v_att_norm_w = torch.div(v_att_w ,torch.clamp(torch.sum(v_att_w, dim = 0), min = 0.0000001)).transpose(0,1).unsqueeze(1)
-                atten_weight.append(v_att_norm_w.data.cpu().numpy().tolist())
-                # batch x 1 x attn_num bmm batch x attn_num x 1024 -> batch x 1 x 1024
-                v_diff_attn = torch.bmm(v_att_norm_w, v_diff).squeeze(1)
-                vis_feats = self.model.v_embd(torch.cat([v_r, v_diff_attn], -1))
+                v_att_w = self.model.attn.negforward(his_emb.transpose(0,1), v_diff.transpose(0,1)).transpose(0,1)
+            
+            v_att_w.data.masked_fill_(~regs_mask.transpose(0,1).data, 0)
+            # v_att_norm_w batch x 1 x attn_num
+            v_att_norm_w = torch.div(v_att_w ,torch.clamp(torch.sum(v_att_w, dim = 0), min = 0.0000001)).transpose(0,1).unsqueeze(1)
+            atten_weight.append(v_att_norm_w.data.cpu().numpy().tolist())
+            # batch x 1 x attn_num bmm batch x attn_num x 1024 -> batch x 1 x 1024
+            v_diff_attn = torch.bmm(v_att_norm_w, v_diff).squeeze(1)
+            vis_feats = self.model.v_embd(torch.cat([v_r, v_diff_attn], -1))
             
             pred, token = self.model.hrnn.decoder(vis_feats, his_emb, training = False, beam_size = beam_size)
             speaker_list.append(pred)
@@ -108,20 +98,13 @@ class Predictor(object):
             if listener == 'locate the object':
                 break
             s_len = len(token) + 1
-            if self.model.cfg.MODEL.ENCREU:
-                fact_len = torch.LongTensor([[s_len, 1]]).cuda()
-                fact_label = torch.LongTensor(s_len).cuda()
-                fact_label[0] = self.model.bos
-                for j in range(1, s_len):
-                    fact_label[j] = token[j - 1]
-                fact_label = fact_label.unsqueeze(0)
-            else:
-                fact_len = torch.LongTensor([s_len]).cuda()
-                fact_label = torch.LongTensor(s_len).cuda()
-                fact_label[0] = self.model.bos
-                for j in range(1, s_len):
-                    fact_label[j] = token[j - 1]
-                fact_label = fact_label.unsqueeze(0)
+            fact_len = torch.LongTensor([[s_len, 1]]).cuda()
+            fact_label = torch.LongTensor(s_len).cuda()
+            fact_label[0] = self.model.bos
+            for j in range(1, s_len):
+                fact_label[j] = token[j - 1]
+            fact_label = fact_label.unsqueeze(0)
+            
 
         # print( 'ref id %s:' % (ref_id))
         # print('Pred: %s' % (speaker_list))
