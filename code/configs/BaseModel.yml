@@ -1,0 +1,65 @@
+DATA_PATH: ../data/ # data
+SAVE_PATH: ..
+RL_Train: false 
+R_MAX: 6      
+S_MAX: 8      
+BOD: <BOD>       # beginning of dialog
+BOS: <BOS>       # beginning of sentence
+EOS: <EOS>       # end of sentence
+UNK: <UNK>       # unknown word
+PAD: <PAD>       # padding
+LOC: <LOC>       # located the object
+NOC: <NOC>       # cannot located the object
+
+DATA:
+  DATA_SET: refcoco
+  FEATS_FILE: resnet152 #resnet152, vgg16_fc7
+  SPLIT: unc_1222
+  TYPE: combine         # combine  split
+MODEL:
+  # general parameters
+  CNN:
+    FEAT_DIM: 2048    #vgg16 4096 resnet152 2048
+    EMBD_DIM: 1024
+    VISUAL_DROPOUT: 0.2
+  WORD:
+    EMBD_DIM: 1024
+    EMBD_DROPOUT: 0.1
+  RNN:
+    RNN_DROPOUT: 0.2  #0.3
+    RNN_HIDDEN: 1024
+    RNN_TYPE: GRU
+    RNN_LAYER: 1
+  # reinforcement new model parameters
+  RL:
+    IN_SIZE: 1024
+    HIDDEN_SIZE: 100
+    SAMPLE_RATE: 1
+TRAIN:
+  GC: 5               # gradient clip
+  LR: 0.0001
+  MOMENTUM: 0.9 # 0 0.9
+  WEIGHT_DECAY: 0.0001  #0 0.0001
+  LR_DECAY: 1
+  MAX_EPOCH: 300
+  MIN_LR: 0.000001
+  OPTIM: Adam
+  PRINT_PER_ITER: 100
+  SAVE_NAME: test
+  SAVE_PER_EPOCH: 10
+  T_BS: 64
+  V_BS: 64
+  RL:
+    Cider_Reward_Weight: 1
+    Bleu_Reward_Weight: 0
+    pretrain_model: visdif_decay0.97_min1-6_update_encREU #revise_sup_single_ckp
+  SL:
+    Lama: 0.5
+    Lamb: 0.5
+    Margin: 1
+
+
+
+
+
+
