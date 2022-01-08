@@ -12,7 +12,7 @@ Source code and data for paper [Referring Expression Generation via Visual Dialo
 # Dataset
 * Image: Download from [COCO_train2014](http://images.cocodataset.org/zips/train2014.zip)
 * ReferWhat?! append only dialog: Download from [ReferWhat_dataset](https://drive.google.com/file/d/1xQPscO1H2m1-Zb-jWzSx4o-AoyfLpG_e/view?usp=sharing), and save into `/data` folder.
-* instance.json: Download from [refcoco/refcoco+](https://github.com/lichengunc/refer)
+* instances.json: Download from [refcoco/refcoco+](https://github.com/lichengunc/refer)
 # Prepare
 `cd code/prepare`
 * image:
